@@ -53,36 +53,35 @@ func main() {
 
 func processFile(inputfilename string, outputfilename string) {
 
-	// open input file
+	// Set up input and output targets
 	inputfile, err := os.Open(inputfilename)
 	check(err)
 
-	// deferred call to close the input file and check for errors
+	outputfile, err := os.Create(outputfilename)
+	check(err)
+
+	// Deferred call to clean up input and output targets
 	defer func() {
 		err := inputfile.Close()
 		check(err)
 	}()
-
-	// create a buffered file reader
-	fileReader := bufio.NewReader(inputfile)
-
-	// open output file
-	outputfile, err := os.Create(outputfilename)
-	check(err)
-
-	// deferred call to close the output file and check for errors
 	defer func() {
 		err := outputfile.Close()
 		check(err)
 	}()
 
-	// create a file writer
+	// Buffered reader and writer
+	fileReader := bufio.NewReader(inputfile)
+
 	fileWriter := bufio.NewWriter(outputfile)
 
 	// Handle initialisation vector processing
 	var iv []byte
+
 	if decryptFlag {
 		// Read the IV from the file
+		// The IV needs to be unique, but not secure. Therefore it's common to
+		// include it at the beginning of the ciphertext
 		ivBuffer := make([]byte, aes.BlockSize)
 		chunk, err := fileReader.Read(ivBuffer)
 		iv = ivBuffer[:chunk]
@@ -100,7 +99,7 @@ func processFile(inputfilename string, outputfilename string) {
 	bufferSize := 1024
 	buffer := make([]byte, bufferSize)
 	for {
-		// read a chunk
+		// Read a chunk
 		chunk, err := fileReader.Read(buffer)
 		if err != nil {
 			if err == io.EOF {
@@ -113,17 +112,17 @@ func processFile(inputfilename string, outputfilename string) {
 			break
 		}
 
-		// encrypt or decrypt chunk
+		// Encrypt or decrypt chunk
 		bytes, err := cipher.AesEncrypt(buffer[:chunk], decryptFlag, password, iv)
 
 		check(err)
 
-		// write the chunk to the output file
+		// Write the chunk to the output file
 		_, err = fileWriter.Write(bytes)
 		check(err)
 	}
 
-	// clean up
+	// Clean up
 	defer func() {
 		err := fileWriter.Flush()
 		check(err)

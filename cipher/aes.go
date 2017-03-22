@@ -33,15 +33,12 @@ func AesEncrypt(bytes []byte, operation bool, password string, iv []byte) ([]byt
 
 func decrypt(bytes []byte, password string, iv []byte) ([]byte, error) {
 
-	// The IV needs to be unique, but not secure. Therefore it's common to
-	// include it at the beginning of the ciphertext.
 	if len(bytes) < aes.BlockSize {
 		panic("Ciphertext too short, must be at least 16 bytes in length")
 	}
 
 	stream := cipher.NewCFBDecrypter(block, iv)
 
-	// XORKeyStream can work in-place if the two arguments are the same.
 	plaintext := make([]byte, len(bytes))
 	stream.XORKeyStream(plaintext, bytes)
 
