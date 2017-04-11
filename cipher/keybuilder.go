@@ -3,7 +3,6 @@ package cipher
 import (
 	"encoding/binary"
 	"fmt"
-	"hash/crc64"
 	"net"
 )
 
@@ -28,11 +27,11 @@ func ConstructKey(password string) ([]byte, error) {
 	// It will return the wrong key if it doesn't match the expected MAC address
 	pwhashArray := make([]byte, 8)
 	pwhash := hashcrc64(password)
-	binary.LittleEndian.PutUint64(pwhashArray, pwhash)
+	binary.BigEndian.PutUint64(pwhashArray, pwhash)
 
 	machashArray := make([]byte, 8)
 	machash := hashcrc64(hwAddr.String())
-	binary.LittleEndian.PutUint64(machashArray, machash)
+	binary.BigEndian.PutUint64(machashArray, machash)
 
 	key = append(pwhashArray, machashArray...)
 
@@ -42,8 +41,33 @@ func ConstructKey(password string) ([]byte, error) {
 }
 
 func hashcrc64(s string) uint64 {
-	tabISO := crc64.MakeTable(crc64.ISO)
-	h := crc64.New(tabISO)
-	h.Write([]byte(s))
-	return h.Sum64()
+	makeTable()
+	return hash([]byte(s))
+}
+
+const isopoly = 0xD800000000000000
+
+var lookuptable [256]uint64
+
+func makeTable() {
+	for i := 0; i < 256; i++ {
+		v := uint64(i)
+		for j := 0; j < 8; j++ {
+			if (v & 1) == 1 {
+				v = (v >> 1) ^ isopoly
+			} else {
+				v = (v >> 1)
+			}
+		}
+		lookuptable[i] = v
+	}
+}
+
+func hash(data []byte) uint64 {
+	var sum uint64
+	for index := range data {
+		lookupidx := (byte(sum) ^ data[index]) & 0xff
+		sum = uint64(sum>>8) ^ lookuptable[lookupidx]
+	}
+	return sum
 }

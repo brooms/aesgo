@@ -99,14 +99,18 @@ func processFile(inputfilename string, outputfilename string) {
 	bufferSize := 1024
 	buffer := make([]byte, bufferSize)
 	for {
-		// Read a chunk
-		chunk, err := fileReader.Read(buffer)
+		// Read a chunk and fill the buffer
+		// this is to make sure every read on encrypt and decrypt is the same length
+		chunk, err := io.ReadFull(fileReader, buffer)
 		if err != nil {
-			if err == io.EOF {
+			if err == io.ErrUnexpectedEOF {
+				// ignore, buffer was partially filled but that's ok, final read
+			} else if err == io.EOF {
 				// End of file
 				break
+			} else {
+				panic(err)
 			}
-			panic(err)
 		} else if chunk == 0 {
 			// No more data to read
 			break
